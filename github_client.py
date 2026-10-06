@@ -7,69 +7,43 @@ load_dotenv()
 
 class GitHubClient:
     def __init__(self):
-        """
-        Initializes the connection to GitHub using the modern Auth Token method.
-        """
         token = os.getenv("GITHUB_TOKEN")
         if not token:
             raise ValueError("❌ GITHUB_TOKEN is missing in the .env file!")
 
-        # MODERN AUTH FIX: Use the Auth.Token module to clear the deprecation warning
+        # Modern Authentication method to prevent deprecation warnings
         auth = Auth.Token(token)
         self.client = Github(auth=auth)
 
     def get_pr_diff(self, repo_name: str, pr_number: int) -> list:
-        """
-        Fetches the exact lines of code that changed in a Pull Request.
-        """
         print(f"📥 Fetching diff for {repo_name} PR #{pr_number}...")
-
         repo = self.client.get_repo(repo_name)
         pull_request = repo.get_pull(pr_number)
 
         changed_files = []
-
         for file in pull_request.get_files():
             if file.patch:
-                changed_files.append(
-                    {
-                        "filename": file.filename,
-                        "patch": file.patch,
-                        "additions": file.additions,
-                        "deletions": file.deletions,
-                    }
-                )
-
+                changed_files.append({"filename": file.filename, "patch": file.patch})
         return changed_files
 
     def post_inline_comment(
         self, repo_name: str, pr_number: int, commit_id: str, file_path: str, body: str
     ):
-        """
-        Posts a Markdown suggestion comment directly on the code.
-        """
         repo = self.client.get_repo(repo_name)
         pull_request = repo.get_pull(pr_number)
 
         try:
+            # Attempt to post comment exactly on the changed line
             pull_request.create_review_comment(
                 body=body, commit=repo.get_commit(commit_id), path=file_path, position=1
             )
-            print("✅ Review posted successfully!")
+            print(f"✅ Inline review posted successfully on {file_path}!")
+
         except Exception as e:
-            print(f"❌ Failed to post comment: {e}")
+            print(f"⚠️ Inline comment failed (likely diff mismatch): {e}")
+            print("🔄 Falling back to a general PR comment...")
 
-
-# --- TEMPORARY TEST BLOCK ---
-if __name__ == "__main__":
-    client = GitHubClient()
-
-    try:
-        # Testing on a very old React PR that we know exists!
-        test_diff = client.get_pr_diff("facebook/react", 10000)
-        print(
-            f"\n🎉 Success! Fetched {len(test_diff)} changed files from React PR #10000."
-        )
-        print(f"First file changed: {test_diff[0]['filename']}")
-    except Exception as e:
-        print(f"❌ Test failed: {e}")
+            # Fallback: Post as a normal comment at the bottom of the PR
+            fallback_body = f"### 🛡️ AI Security Review for `{file_path}`\n\n{body}"
+            pull_request.create_issue_comment(fallback_body)
+            print("✅ General PR comment posted successfully!")
