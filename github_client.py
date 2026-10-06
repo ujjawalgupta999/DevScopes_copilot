@@ -35,7 +35,7 @@ class GitHubClient:
         try:
             # Attempt to post comment exactly on the changed line
             pull_request.create_review_comment(
-                body=body, commit=repo.get_commit(commit_id), path=file_path, position=1
+                body=body, commit=repo.get_commit(commit_id), path=file_path, line=1
             )
             print(f"✅ Inline review posted successfully on {file_path}!")
 

@@ -14,7 +14,9 @@ class DevSecOpsAgent:
             raise ValueError("❌ GROQ_API_KEY is missing in the .env file!")
 
         self.llm = ChatGroq(
-            temperature=0, model_name="llama-3.3-70b-versatile", api_key=api_key
+            temperature=0,
+            model_name="openai/gpt-oss-20b",
+            api_key=api_key,
         )
         self.github = GitHubClient()
 
